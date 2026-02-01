@@ -137,6 +137,27 @@
         margin: 0.25em 0;
         margin-left: 0 !important;
       }
+
+      /* 命令确认框样式 - 修复长命令溢出 */
+      .bi, .t {
+        max-height: none !important;
+        overflow: visible !important;
+      }
+      /* 命令预览区域 - 可滚动 */
+      .Ai, .Ai.Q {
+        white-space: pre-wrap !important;
+        word-break: break-all !important;
+        overflow-wrap: break-word !important;
+        max-height: 400px !important;
+        overflow-y: auto !important;
+        overflow-x: auto !important;
+      }
+      /* 确保对话框内容不溢出 */
+      .Ti {
+        max-height: 500px !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -238,9 +259,9 @@
                 parent.tagName === 'TEXTAREA') {
               return NodeFilter.FILTER_REJECT;
             }
-            // 检查是否包含数学公式 (只处理明显的 LaTeX 语法)
+            // 检查是否包含数学公式
             const text = node.textContent;
-            if (text && (text.includes('$$') || text.includes('\\(') || text.includes('\\['))) {
+            if (text && (text.includes('$$') || text.includes('$') || text.includes('\\(') || text.includes('\\['))) {
               return NodeFilter.FILTER_ACCEPT;
             }
             return NodeFilter.FILTER_REJECT;
@@ -303,6 +324,37 @@
           try {
             return katex.renderToString(formula.trim(), {
               displayMode: true,
+              throwOnError: false,
+              strict: false,
+              trust: true
+            });
+          } catch {
+            return match;
+          }
+        });
+
+        // 处理 $...$ 行内公式 (智能匹配，避免误伤)
+        // 只匹配包含 LaTeX 特征的内容: 反斜杠命令、下标上标、花括号等，或短公式
+        resultHTML = resultHTML.replace(/\$([^\$\n]+?)\$/g, (match, formula) => {
+          // 检查是否像 LaTeX 公式
+          const content = formula.trim();
+          const looksLikeLatex =
+            content.length <= 2 ||         // 短公式 (单字符如 $m$ 或双字符如 $x^2$)
+            content.includes('\\') ||      // 包含 LaTeX 命令
+            content.includes('_') ||       // 包含下标
+            content.includes('^') ||       // 包含上标
+            content.includes('{') ||       // 包含花括号
+            /\b(alpha|beta|gamma|delta|theta|lambda|mu|sigma|pi|phi|omega|sum|prod|int|lim|frac|sqrt|infty)\b/i.test(content); // 包含常见数学符号
+
+          if (!looksLikeLatex) {
+            return match;  // 不像 LaTeX，保持原样
+          }
+
+          formulaCount++;
+          hasFormula = true;
+          try {
+            return katex.renderToString(content, {
+              displayMode: false,
               throwOnError: false,
               strict: false,
               trust: true
