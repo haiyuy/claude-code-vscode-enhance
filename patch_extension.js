@@ -66,6 +66,19 @@ if (!content.includes('enhance.js')) {
   );
 }
 
+// 修改 5: 修复 diff 视图铺满窗口问题 - 在侧边栏打开
+// 查找 let v={preview:!1} 模式并添加 viewColumn:Beside
+content = content.replace(
+  /let v=\{preview:!1\}/g,
+  'let v={preview:!1,viewColumn:tr.ViewColumn.Beside}'
+);
+
+// 同时修改另一个可能的变量名 N
+content = content.replace(
+  /let N=\{preview:!1,preserveFocus:!0\}/g,
+  'let N={preview:!1,preserveFocus:!0,viewColumn:Gt.ViewColumn.Beside}'
+);
+
 // 写回文件
 fs.writeFileSync(extensionJs, content, 'utf8');
 console.log('[Claude Code Patch] Done!');

@@ -138,12 +138,13 @@
         margin-left: 0 !important;
       }
 
-      /* 命令确认框样式 - 修复长命令溢出 */
+      /* 命令确认框样式 - 修复长命令溢出 + 字体 */
       .bi, .t {
         max-height: none !important;
         overflow: visible !important;
+        font-family: 'JetBrains Mono NL', 'LXGW WenKai GB Screen R', 'Consolas', 'Monaco', 'Ubuntu Mono', 'Source Code Pro', 'Fira Code', 'DejaVu Sans Mono', 'Courier New', monospace !important;
       }
-      /* 命令预览区域 - 可滚动 */
+      /* 命令预览区域 - 可滚动 + 字体 */
       .Ai, .Ai.Q {
         white-space: pre-wrap !important;
         word-break: break-all !important;
@@ -151,12 +152,14 @@
         max-height: 400px !important;
         overflow-y: auto !important;
         overflow-x: auto !important;
+        font-family: 'JetBrains Mono NL', 'LXGW WenKai GB Screen R', 'Consolas', 'Monaco', 'Ubuntu Mono', 'Source Code Pro', 'Fira Code', 'DejaVu Sans Mono', 'Courier New', monospace !important;
       }
-      /* 确保对话框内容不溢出 */
+      /* 确保对话框内容不溢出 + 字体 */
       .Ti {
         max-height: 500px !important;
         overflow-y: auto !important;
         overflow-x: hidden !important;
+        font-family: 'JetBrains Mono NL', 'LXGW WenKai GB Screen R', 'Consolas', 'Monaco', 'Ubuntu Mono', 'Source Code Pro', 'Fira Code', 'DejaVu Sans Mono', 'Courier New', monospace !important;
       }
     `;
     document.head.appendChild(style);
