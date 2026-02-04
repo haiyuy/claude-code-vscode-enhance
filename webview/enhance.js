@@ -1,26 +1,12 @@
 /**
- * Claude Code UI 增强脚本 v8
- * 功能: 代码高亮、LaTeX渲染
+ * Claude Code UI 增强脚本 v9
+ * 功能: 滚轮缩放, 字体, 表格, LaTeX, 换行, 代码高亮
  */
 
 (function() {
   'use strict';
 
   console.log('[Claude Enhance] Loading...');
-
-  // 等待 React 完成渲染
-  function waitForElement(selector, callback, timeout = 10000) {
-    const startTime = Date.now();
-    const check = () => {
-      const el = document.querySelector(selector);
-      if (el) {
-        callback(el);
-      } else if (Date.now() - startTime < timeout) {
-        setTimeout(check, 100);
-      }
-    };
-    check();
-  }
 
   // 注入样式
   function injectStyles() {
@@ -30,11 +16,8 @@
     const style = document.createElement('style');
     style.id = styleId;
     style.textContent = `
-      /* 代码块样式 */
-      pre code {
-        font-family: 'JetBrains Mono NL', 'LXGW WenKai GB Screen R', 'Consolas', 'Monaco', 'Ubuntu Mono', 'Source Code Pro', 'Fira Code', 'DejaVu Sans Mono', 'Courier New', monospace !important;
-      }
-      .hljs {
+      /* 代码块字体 */
+      pre code, .hljs {
         font-family: 'JetBrains Mono NL', 'LXGW WenKai GB Screen R', 'Consolas', 'Monaco', 'Ubuntu Mono', 'Source Code Pro', 'Fira Code', 'DejaVu Sans Mono', 'Courier New', monospace !important;
       }
 
@@ -45,6 +28,15 @@
       .katex-display {
         margin: 1em 0;
         overflow-x: auto;
+      }
+
+      /* 列表样式 - 修复数字被截断 */
+      ol, ul {
+        padding-left: 2em !important;
+        list-style-position: outside !important;
+      }
+      ol {
+        list-style-type: decimal !important;
       }
 
       /* 表格样式 - 暗色主题 */
@@ -97,7 +89,7 @@
         background-color: rgba(255, 255, 255, 0.08);
       }
 
-      /* Bash命令行样式 - 修复长内容不换行 */
+      /* 代码块换行 */
       pre {
         white-space: pre-wrap !important;
         word-wrap: break-word !important;
@@ -107,59 +99,6 @@
       pre code {
         white-space: pre-wrap !important;
         word-break: break-word !important;
-      }
-
-      /* 列表样式 - 修复数字被截断 */
-      ol, ul {
-        margin: 0.5em 0;
-        margin-left: 0 !important;
-        padding-left: 3em !important;
-        overflow: visible !important;
-      }
-      ol li, ul li {
-        margin: 0.25em 0;
-        margin-left: 0 !important;
-        color: #e0e0e0;
-        line-height: 1.6;
-        overflow: visible !important;
-        padding-left: 0 !important;
-      }
-      ol li::marker, ul li::marker {
-        color: #b0b0b0;
-        font-weight: 500;
-      }
-      /* 修复父容器可能裁切数字 */
-      .markdown, .prose, [class*="message"], [class*="content"], [class*="container"] {
-        overflow: visible !important;
-      }
-      /* 确保嵌套列表正确显示 */
-      ol ol, ul ul, ol ul, ul ol {
-        margin: 0.25em 0;
-        margin-left: 0 !important;
-      }
-
-      /* 命令确认框样式 - 修复长命令溢出 + 字体 */
-      .bi, .t {
-        max-height: none !important;
-        overflow: visible !important;
-        font-family: 'JetBrains Mono NL', 'LXGW WenKai GB Screen R', 'Consolas', 'Monaco', 'Ubuntu Mono', 'Source Code Pro', 'Fira Code', 'DejaVu Sans Mono', 'Courier New', monospace !important;
-      }
-      /* 命令预览区域 - 可滚动 + 字体 */
-      .Ai, .Ai.Q {
-        white-space: pre-wrap !important;
-        word-break: break-all !important;
-        overflow-wrap: break-word !important;
-        max-height: 400px !important;
-        overflow-y: auto !important;
-        overflow-x: auto !important;
-        font-family: 'JetBrains Mono NL', 'LXGW WenKai GB Screen R', 'Consolas', 'Monaco', 'Ubuntu Mono', 'Source Code Pro', 'Fira Code', 'DejaVu Sans Mono', 'Courier New', monospace !important;
-      }
-      /* 确保对话框内容不溢出 + 字体 */
-      .Ti {
-        max-height: 500px !important;
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
-        font-family: 'JetBrains Mono NL', 'LXGW WenKai GB Screen R', 'Consolas', 'Monaco', 'Ubuntu Mono', 'Source Code Pro', 'Fira Code', 'DejaVu Sans Mono', 'Courier New', monospace !important;
       }
     `;
     document.head.appendChild(style);
@@ -184,7 +123,7 @@
     document.head.appendChild(script);
   }
 
-  // 注入 KaTeX + auto-render 扩展
+  // 注入 KaTeX
   function injectKaTeX() {
     if (window.katexLoaded) return;
 
@@ -196,14 +135,20 @@
     const script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js';
     script.onload = () => {
-      // 加载 auto-render 扩展
-      const autoRenderScript = document.createElement('script');
-      autoRenderScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js';
-      autoRenderScript.onload = () => {
-        window.katexLoaded = true;
-        console.log('[Claude Enhance] KaTeX + auto-render loaded');
+      // 等待 katex 挂载到 window
+      const checkKatex = () => {
+        if (typeof katex !== 'undefined') {
+          window.katexLoaded = true;
+          console.log('[Claude Enhance] KaTeX ready:', typeof katex);
+        } else {
+          console.log('[Claude Enhance] KaTeX not on window, retrying...');
+          setTimeout(checkKatex, 100);
+        }
       };
-      document.head.appendChild(autoRenderScript);
+      checkKatex();
+    };
+    script.onerror = (e) => {
+      console.error('[Claude Enhance] KaTeX load error:', e);
     };
     document.head.appendChild(script);
   }
@@ -213,34 +158,20 @@
     if (typeof hljs === 'undefined') return;
 
     document.querySelectorAll('pre code').forEach((block) => {
-      // 跳过 LaTeX 代码块 (LaTeX 由 KaTeX 处理)
       if (block.classList.contains('language-latex')) return;
-
-      // 如果还没高亮，先高亮
       if (!block.classList.contains('hljs')) {
         hljs.highlightElement(block);
       }
     });
   }
 
-  // 转换 LaTeX 环境语法为 KaTeX 支持的语法
-  function convertLatexEnvironments(latex) {
-    // KaTeX 原生支持 pmatrix/bmatrix, 但需要确保环境名称正确
-    // 不需要转换, KaTeX 直接支持 \begin{pmatrix}...\end{pmatrix}
-    // 如果有问题, 保留原始语法
-    return latex;
-  }
-
-  // 渲染 LaTeX - 简单可靠的文本节点处理
+  // 渲染 LaTeX
   function renderLaTeX() {
     if (typeof katex === 'undefined') return;
-
-    // 防止重复处理：检查是否正在渲染
     if (window._claudeRenderingLaTeX) return;
     window._claudeRenderingLaTeX = true;
 
     try {
-      // 查找所有文本节点
       const walker = document.createTreeWalker(
         document.getElementById('root') || document.body,
         NodeFilter.SHOW_TEXT,
@@ -248,21 +179,15 @@
           acceptNode: (node) => {
             const parent = node.parentNode;
             if (!parent || parent.nodeType !== 1) return NodeFilter.FILTER_REJECT;
-            // 跳过已渲染和特殊标签
+            // 跳过已渲染的 KaTeX, 特殊标签, 和 session 列表
             if (parent.classList?.contains('katex') ||
-                parent.classList?.contains('katex-html') ||
                 parent.closest('.katex') ||
-                parent.tagName === 'SCRIPT' ||
-                parent.tagName === 'STYLE' ||
-                parent.tagName === 'CODE' ||
-                parent.tagName === 'NOSCRIPT' ||
-                parent.tagName === 'PRE' ||
-                parent.tagName === 'BUTTON' ||
-                parent.tagName === 'INPUT' ||
-                parent.tagName === 'TEXTAREA') {
+                parent.closest('[class*="sessionsList"]') ||
+                parent.closest('[class*="sessionItem"]') ||
+                parent.closest('[class*="sessionName"]') ||
+                ['SCRIPT', 'STYLE', 'CODE', 'PRE', 'BUTTON', 'INPUT', 'TEXTAREA'].includes(parent.tagName)) {
               return NodeFilter.FILTER_REJECT;
             }
-            // 检查是否包含数学公式
             const text = node.textContent;
             if (text && (text.includes('$$') || text.includes('$') || text.includes('\\(') || text.includes('\\['))) {
               return NodeFilter.FILTER_ACCEPT;
@@ -272,284 +197,143 @@
         }
       );
 
-    const nodesToRender = [];
-    let node;
-    while (node = walker.nextNode()) {
-      nodesToRender.push(node);
-    }
-
-    nodesToRender.forEach((textNode) => {
-      const text = textNode.textContent;
-      if (!text || !text.trim()) return;  // 跳过空白节点
-
-      try {
-        let resultHTML = text;
-        let hasFormula = false;
-        let formulaCount = 0;
-
-        // 处理 $$...$$ 块级公式
-        resultHTML = resultHTML.replace(/\$\$([\s\S]+?)\$\$/g, (match, formula) => {
-          formulaCount++;
-          hasFormula = true;
-          try {
-            const converted = convertLatexEnvironments(formula.trim());
-            return katex.renderToString(converted, {
-              displayMode: true,
-              throwOnError: false,
-              strict: false,
-              trust: true
-            });
-          } catch {
-            return match;
-          }
-        });
-
-        // 处理 \(...\) 行内公式 (LaTeX 标准语法)
-        resultHTML = resultHTML.replace(/\\\(([\s\S]+?)\\\)/g, (match, formula) => {
-          formulaCount++;
-          hasFormula = true;
-          try {
-            return katex.renderToString(formula.trim(), {
-              displayMode: false,
-              throwOnError: false,
-              strict: false,
-              trust: true
-            });
-          } catch {
-            return match;
-          }
-        });
-
-        // 处理 \[...\] 块级公式 (LaTeX 标准语法)
-        resultHTML = resultHTML.replace(/\\\[([\s\S]+?)\\\]/g, (match, formula) => {
-          formulaCount++;
-          hasFormula = true;
-          try {
-            return katex.renderToString(formula.trim(), {
-              displayMode: true,
-              throwOnError: false,
-              strict: false,
-              trust: true
-            });
-          } catch {
-            return match;
-          }
-        });
-
-        // 处理 $...$ 行内公式 (智能匹配，避免误伤)
-        // 只匹配包含 LaTeX 特征的内容: 反斜杠命令、下标上标、花括号等，或短公式
-        resultHTML = resultHTML.replace(/\$([^\$\n]+?)\$/g, (match, formula) => {
-          // 检查是否像 LaTeX 公式
-          const content = formula.trim();
-          const looksLikeLatex =
-            content.length <= 2 ||         // 短公式 (单字符如 $m$ 或双字符如 $x^2$)
-            content.includes('\\') ||      // 包含 LaTeX 命令
-            content.includes('_') ||       // 包含下标
-            content.includes('^') ||       // 包含上标
-            content.includes('{') ||       // 包含花括号
-            /\b(alpha|beta|gamma|delta|theta|lambda|mu|sigma|pi|phi|omega|sum|prod|int|lim|frac|sqrt|infty)\b/i.test(content); // 包含常见数学符号
-
-          if (!looksLikeLatex) {
-            return match;  // 不像 LaTeX，保持原样
-          }
-
-          formulaCount++;
-          hasFormula = true;
-          try {
-            return katex.renderToString(content, {
-              displayMode: false,
-              throwOnError: false,
-              strict: false,
-              trust: true
-            });
-          } catch {
-            return match;
-          }
-        });
-
-        // 只有真正包含公式且内容发生变化时才替换
-        if (hasFormula && formulaCount > 0 && resultHTML !== text && resultHTML.includes('katex')) {
-          const span = document.createElement('span');
-          span.innerHTML = resultHTML;
-          textNode.parentNode.replaceChild(span, textNode);
-        }
-      } catch (e) {
-        // 忽略错误
+      const nodesToRender = [];
+      let node;
+      while (node = walker.nextNode()) {
+        nodesToRender.push(node);
       }
-    });
+
+      nodesToRender.forEach((textNode) => {
+        const text = textNode.textContent;
+        if (!text || !text.trim()) return;
+
+        try {
+          let resultHTML = text;
+          let hasFormula = false;
+
+          // $$...$$ 块级公式 (保留换行, 矩阵需要)
+          resultHTML = resultHTML.replace(/\$\$([\s\S]+?)\$\$/g, (match, formula) => {
+            hasFormula = true;
+            try {
+              // 修复矩阵换行: 单反斜杠+空格/换行 → 双反斜杠
+              let fixed = formula.replace(/\\\s*\n/g, '\\\\\n');
+              fixed = fixed.replace(/\\ (?=[a-zA-Z0-9_{}])/g, '\\\\ ');
+              return katex.renderToString(fixed, { displayMode: true, throwOnError: false });
+            } catch { return match; }
+          });
+
+          // \(...\) 行内公式
+          resultHTML = resultHTML.replace(/\\\(([\s\S]+?)\\\)/g, (match, formula) => {
+            hasFormula = true;
+            try {
+              return katex.renderToString(formula.trim(), { displayMode: false, throwOnError: false });
+            } catch { return match; }
+          });
+
+          // \[...\] 块级公式 (保留换行)
+          resultHTML = resultHTML.replace(/\\\[([\s\S]+?)\\\]/g, (match, formula) => {
+            hasFormula = true;
+            try {
+              return katex.renderToString(formula, { displayMode: true, throwOnError: false });
+            } catch { return match; }
+          });
+
+          // $...$ 行内公式 (智能匹配)
+          resultHTML = resultHTML.replace(/\$([^\$\n]+?)\$/g, (match, formula) => {
+            const content = formula.trim();
+            const looksLikeLatex = content.length <= 2 || content.includes('\\') ||
+              content.includes('_') || content.includes('^') || content.includes('{') ||
+              /\b(alpha|beta|gamma|delta|theta|lambda|mu|sigma|pi|omega|sum|int|frac|sqrt)\b/i.test(content);
+            if (!looksLikeLatex) return match;
+            hasFormula = true;
+            try {
+              // 修复矩阵换行: \ 后跟字母/数字 → \\
+              let fixed = content.replace(/\\ (?=[a-zA-Z0-9_{}])/g, '\\\\ ');
+              return katex.renderToString(fixed, { displayMode: false, throwOnError: false });
+            } catch { return match; }
+          });
+
+          if (hasFormula && resultHTML !== text && resultHTML.includes('katex')) {
+            const span = document.createElement('span');
+            span.innerHTML = resultHTML;
+            textNode.parentNode.replaceChild(span, textNode);
+          }
+        } catch (e) {}
+      });
     } finally {
       window._claudeRenderingLaTeX = false;
     }
   }
 
-  // 调试函数：查找空白元素
-  window.debugWhitespace = function() {
-    const root = document.getElementById('root') || document.body;
-    const allElements = root.querySelectorAll('*');
-
-    // 查找高度异常的元素
-    const tallElements = Array.from(allElements).filter(el => el.offsetHeight > 2000);
-    if (tallElements.length > 0) {
-      console.log('[Debug] Found unusually tall elements:', tallElements.map(el => ({
-        tag: el.tagName,
-        class: el.className,
-        height: el.offsetHeight
-      })));
-    }
-
-    // 查找空元素
-    const emptyElements = root.querySelectorAll('div:empty, span:empty');
-    if (emptyElements.length > 100) {
-      console.log('[Debug] Too many empty elements:', emptyElements.length);
-    }
-
-    // 查找总高度
-    const bodyHeight = document.body.scrollHeight;
-    const viewportHeight = window.innerHeight;
-    console.log('[Debug] Body scroll height:', bodyHeight, 'Viewport:', viewportHeight);
-
-    return {
-      tallElements: tallElements.length,
-      emptyElements: emptyElements.length,
-      bodyHeight: bodyHeight,
-      viewportHeight: viewportHeight
-    };
-  };
-
-  // 主处理函数 - 带防抖
-  let processTimer = null;
-  let isProcessing = false;
-
-  function process() {
-    // 如果正在处理，跳过
-    if (isProcessing) return;
-
-    // 取消之前的定时器
-    if (processTimer) {
-      clearTimeout(processTimer);
-    }
-
-    // 延迟执行
-    processTimer = setTimeout(() => {
-      isProcessing = true;
-
-      try {
-        highlightAllCode();
-        renderLaTeX();
-      } finally {
-        // 减少延迟，提高响应速度
-        isProcessing = false;
-      }
-    }, 150);
-  }
-
-  // 监听 DOM 变化 - 优化版：避免频繁断开重连
-  function setupObserver() {
-    let lastProcessTime = 0;
-    const PROCESS_THROTTLE = 200; // 最小处理间隔
-
-    const observer = new MutationObserver((mutations) => {
-      const now = Date.now();
-
-      // 节流：避免过于频繁处理
-      if (now - lastProcessTime < PROCESS_THROTTLE) {
-        return;
-      }
-
-      // 如果正在处理，跳过
-      if (isProcessing) return;
-
-      // 检查是否有新的内容节点添加
-      let hasNewContent = false;
-      for (const m of mutations) {
-        for (const node of m.addedNodes) {
-          if (node.nodeType === 1) {
-            const tag = node.tagName?.toLowerCase();
-            // className 可能是 DOMTokenList, 需要转为字符串
-            const cls = (node.className?.toString() || '');
-            // 跳过我们的增强元素和已知安全节点
-            if (!cls.includes('hljs') &&
-                !cls.includes('katex') &&
-                !cls.includes('katex-html') &&
-                tag !== 'style' &&
-                tag !== 'script' &&
-                tag !== 'br' &&
-                tag !== 'span') {
-              hasNewContent = true;
-              break;
-            }
-          }
-        }
-        if (hasNewContent) break;
-      }
-
-      if (hasNewContent) {
-        lastProcessTime = now;
-        process(); // 不再断开/重连观察器
-      }
-    });
-
-    // 使用更精确的观察配置，减少触发频率
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-  }
-
-  // 滚轮缩放功能
+  // 滚轮缩放
   function setupZoom() {
-    // 从 localStorage 读取缩放比例
     let zoom = parseFloat(localStorage.getItem('claude-zoom') || '1.0');
-    applyZoom(zoom);
+    document.body.style.zoom = zoom;
 
-    // 监听滚轮事件
     document.addEventListener('wheel', (e) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         const delta = e.deltaY > 0 ? -0.1 : 0.1;
         zoom = Math.max(0.5, Math.min(2.0, zoom + delta));
-        applyZoom(zoom);
+        document.body.style.zoom = zoom;
         localStorage.setItem('claude-zoom', zoom.toString());
         showZoomIndicator(zoom);
       }
     }, { passive: false });
   }
 
-  // 应用缩放
-  function applyZoom(zoom) {
-    // 使用 zoom 属性缩放整个页面 (更有效)
-    document.body.style.zoom = zoom;
-    // 备用: 也设置 transform (某些浏览器可能需要)
-    document.body.style.transformOrigin = 'top left';
-  }
-
-  // 显示缩放提示
   function showZoomIndicator(zoom) {
     let indicator = document.getElementById('zoom-indicator');
     if (!indicator) {
       indicator = document.createElement('div');
       indicator.id = 'zoom-indicator';
       indicator.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: rgba(40, 40, 40, 0.95);
-        color: #fff;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-size: 14px;
-        z-index: 10000;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        transition: opacity 0.3s;
+        position: fixed; top: 20px; right: 20px;
+        background: rgba(40, 40, 40, 0.95); color: #fff;
+        padding: 8px 16px; border-radius: 6px; font-size: 14px;
+        z-index: 10000; transition: opacity 0.3s;
       `;
       document.body.appendChild(indicator);
     }
     indicator.textContent = `缩放: ${Math.round(zoom * 100)}%`;
     indicator.style.opacity = '1';
+    setTimeout(() => { indicator.style.opacity = '0'; }, 1000);
+  }
 
-    setTimeout(() => {
-      indicator.style.opacity = '0';
-    }, 1000);
+  // DOM 监听 - 防抖处理, 避免输出过程中抽搐
+  function setupObserver() {
+    let debounceTimer = null;
+    const DEBOUNCE_DELAY = 500; // 等待 500ms 无变化后再渲染
+
+    const observer = new MutationObserver((mutations) => {
+      // 跳过我们自己添加的元素
+      let hasRealChange = false;
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node.nodeType === 1) {
+            const cls = node.className?.toString() || '';
+            if (!cls.includes('hljs') && !cls.includes('katex') && !cls.includes('zoom-indicator')) {
+              hasRealChange = true;
+              break;
+            }
+          }
+        }
+        if (hasRealChange) break;
+      }
+
+      if (!hasRealChange) return;
+
+      // 清除之前的定时器, 重新计时
+      if (debounceTimer) clearTimeout(debounceTimer);
+
+      // 等待输出稳定后再渲染
+      debounceTimer = setTimeout(() => {
+        highlightAllCode();
+        renderLaTeX();
+      }, DEBOUNCE_DELAY);
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 
   // 初始化
@@ -559,12 +343,9 @@
     injectHighlightJS();
     injectKaTeX();
     setupZoom();
-
-    waitForElement('#root', () => {
-      console.log('[Claude Enhance] Root element found');
-      setupObserver();
-      process();
-    });
+    setupObserver();
+    highlightAllCode();
+    renderLaTeX();
   }
 
   if (document.readyState === 'loading') {
@@ -572,7 +353,4 @@
   } else {
     init();
   }
-
-  console.log('[Claude Enhance] Loaded. Run debugWhitespace() to check for issues.');
-
 })();
