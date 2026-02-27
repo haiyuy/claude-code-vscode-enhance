@@ -15,8 +15,8 @@
 
 ## 兼容版本
 
-- Claude Code Extension: **2.1.31**
-- 平台: Windows (win32-x64), Linux (linux-x64)
+- Claude Code Extension: **2.1.31+** (已验证: **2.1.61**)
+- 平台: Windows / Linux / VSCode Remote (WSL/SSH)
 
 ## 安装
 
@@ -26,6 +26,25 @@
 cd claude-code-enhance
 node patch_extension.js
 ```
+
+#### VSCode Remote / WSL 用户
+
+如果你日常用 VSCode 连接 WSL（或 SSH Remote），Claude Code 扩展通常安装在远端（例如 `~/.vscode-server/extensions/`）。
+
+请在 **WSL 里的终端**（或 VSCode 连接到 WSL 后的集成终端）运行同样的命令：
+
+```bash
+cd /mnt/d/claude-code-enhance
+node patch_extension.js
+```
+
+脚本会自动检测并补丁 `~/.vscode-server/extensions/` 下的 Claude Code 扩展目录。
+
+#### 常用参数
+
+- `node patch_extension.js --list`：列出检测到的 Claude Code 扩展目录
+- `node patch_extension.js --dry-run`：只预览改动，不写入文件
+- `node patch_extension.js --extension-dir <dir>`：手动指定扩展目录
 
 脚本会自动:
 1. 查找已安装的 Claude Code 扩展

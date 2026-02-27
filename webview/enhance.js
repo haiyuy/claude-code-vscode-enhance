@@ -16,18 +16,56 @@
     const style = document.createElement('style');
     style.id = styleId;
     style.textContent = `
+      /* 主题变量（适配 light/dark） */
+      body.vscode-light, body.vscode-high-contrast-light {
+        --claude-enhance-katex-fg: #000;
+        --claude-enhance-table-fg: rgba(0, 0, 0, 0.85);
+        --claude-enhance-table-bg: rgba(255, 255, 255, 0.35);
+        --claude-enhance-table-border: rgba(0, 0, 0, 0.22);
+        --claude-enhance-table-header-bg: rgba(0, 0, 0, 0.08);
+        --claude-enhance-table-header-fg: rgba(0, 0, 0, 0.92);
+        --claude-enhance-table-row-even: rgba(0, 0, 0, 0.02);
+        --claude-enhance-table-row-hover: rgba(0, 0, 0, 0.05);
+      }
+      body.vscode-dark, body.vscode-high-contrast {
+        --claude-enhance-katex-fg: rgba(255, 255, 255, 0.92);
+        --claude-enhance-table-fg: rgba(224, 224, 224, 0.95);
+        --claude-enhance-table-bg: rgba(0, 0, 0, 0.22);
+        --claude-enhance-table-border: rgba(255, 255, 255, 0.18);
+        --claude-enhance-table-header-bg: rgba(255, 255, 255, 0.08);
+        --claude-enhance-table-header-fg: rgba(255, 255, 255, 0.95);
+        --claude-enhance-table-row-even: rgba(255, 255, 255, 0.03);
+        --claude-enhance-table-row-hover: rgba(255, 255, 255, 0.08);
+      }
+
       /* 代码块字体 */
       pre code, .hljs {
         font-family: 'JetBrains Mono NL', 'LXGW WenKai GB Screen R', 'Consolas', 'Monaco', 'Ubuntu Mono', 'Source Code Pro', 'Fira Code', 'DejaVu Sans Mono', 'Courier New', monospace !important;
       }
 
-      /* KaTeX 样式 */
+      /* KaTeX 样式（颜色/间距自适应） */
+      .katex, .katex * {
+        color: var(--claude-enhance-katex-fg, var(--vscode-foreground, #000)) !important;
+      }
       .katex {
         font-size: 1.1em;
+        line-height: 1.35;
+        display: inline-block;
+        padding: 0.05em 0;
       }
       .katex-display {
-        margin: 1em 0;
+        margin: 0.6em 0 !important;
+        padding: 0.15em 0;
+        max-width: 100%;
         overflow-x: auto;
+        overflow-y: visible;
+      }
+
+      /* KaTeX 解析失败时：不要整段变红，改为轻微提示（仍可悬停查看错误） */
+      .katex-error {
+        color: var(--claude-enhance-katex-fg, var(--vscode-foreground, #000)) !important;
+        text-decoration: underline wavy rgba(220, 38, 38, 0.8);
+        text-underline-offset: 2px;
       }
 
       /* 列表样式 - 修复数字被截断 */
@@ -39,54 +77,47 @@
         list-style-type: decimal !important;
       }
 
-      /* 表格样式 - 暗色主题 */
+      /* 表格样式 - 主题自适应 */
       table {
         border-collapse: separate;
         border-spacing: 0;
         width: 100%;
         margin: 1em 0;
         font-size: 0.95em;
-        color: #e0e0e0;
-        border-radius: 4px;
+        color: var(--claude-enhance-table-fg, var(--vscode-foreground, #000));
+        background: var(--claude-enhance-table-bg, transparent);
+        border-radius: 6px;
         overflow: hidden;
-        border: 3px solid #707070;
+        border: 1px solid var(--claude-enhance-table-border, rgba(127, 127, 127, 0.35));
       }
       table thead {
-        background: linear-gradient(to bottom, #2d2d2d, #252525);
+        background: var(--claude-enhance-table-header-bg, rgba(0, 0, 0, 0.06));
+        color: var(--claude-enhance-table-header-fg, var(--vscode-foreground, #000));
       }
       table th {
         padding: 10px 14px;
         text-align: left;
         font-weight: 600;
-        border: 3px solid #707070;
-        color: #ffffff;
-      }
-      table th:first-child {
-        border-top-left-radius: 4px;
-      }
-      table th:last-child {
-        border-top-right-radius: 4px;
+        border-right: 1px solid var(--claude-enhance-table-border, rgba(127, 127, 127, 0.35));
+        border-bottom: 1px solid var(--claude-enhance-table-border, rgba(127, 127, 127, 0.35));
       }
       table td {
         padding: 10px 14px;
-        border: 3px solid #707070;
-        border-top: none;
-        border-left: none;
+        border-right: 1px solid var(--claude-enhance-table-border, rgba(127, 127, 127, 0.35));
+        border-bottom: 1px solid var(--claude-enhance-table-border, rgba(127, 127, 127, 0.35));
       }
+      table th:last-child,
       table td:last-child {
         border-right: none;
       }
-      table tbody tr:last-child td:first-child {
-        border-bottom-left-radius: 4px;
-      }
-      table tbody tr:last-child td:last-child {
-        border-bottom-right-radius: 4px;
+      table tbody tr:last-child td {
+        border-bottom: none;
       }
       table tbody tr:nth-child(even) {
-        background-color: rgba(255, 255, 255, 0.03);
+        background-color: var(--claude-enhance-table-row-even, rgba(0, 0, 0, 0.02));
       }
       table tbody tr:hover {
-        background-color: rgba(255, 255, 255, 0.08);
+        background-color: var(--claude-enhance-table-row-hover, rgba(0, 0, 0, 0.05));
       }
 
       /* 代码块换行 */
@@ -151,6 +182,10 @@
       window.hljsLoaded = true;
       highlightAllCode();
     };
+    script.onerror = (e) => {
+      console.error('[Claude Enhance] Highlight.js load error:', e);
+      showNotification('Highlight.js 加载失败 (可能网络/CSP限制)');
+    };
     document.head.appendChild(script);
   }
 
@@ -171,6 +206,8 @@
         if (typeof katex !== 'undefined') {
           window.katexLoaded = true;
           console.log('[Claude Enhance] KaTeX ready:', typeof katex);
+          // KaTeX 可能在页面内容稳定后才加载完成，此时需要主动渲染一次
+          renderLaTeX();
         } else {
           console.log('[Claude Enhance] KaTeX not on window, retrying...');
           setTimeout(checkKatex, 100);
@@ -180,6 +217,7 @@
     };
     script.onerror = (e) => {
       console.error('[Claude Enhance] KaTeX load error:', e);
+      showNotification('KaTeX 加载失败 (可能网络/CSP限制)');
     };
     document.head.appendChild(script);
   }
@@ -203,6 +241,31 @@
     window._claudeRenderingLaTeX = true;
 
     try {
+      const looksLikeBareLatexMath = (text) => {
+        const t = (text || '').trim();
+        if (!t) return false;
+        if (t.length > 2000) return false;
+
+        // 避免把路径/URL 误判成 LaTeX
+        if (/[a-zA-Z]:\\/.test(t) || t.startsWith('\\\\')) return false;
+        if (t.includes('://')) return false;
+
+        // 必须含有典型 LaTeX 命令（避免 \Users 之类误判）
+        const HAS_TEX_COMMAND =
+          /\\(frac|sum|prod|int|lim|sin|cos|tan|log|ln|sqrt|left|right|text|operatorname|begin|end|alpha|beta|gamma|delta|theta|lambda|mu|sigma|pi|omega)\b/.test(
+            t
+          );
+        if (!HAS_TEX_COMMAND) return false;
+
+        // 必须有数学结构字符
+        if (!/[=^_{}]/.test(t)) return false;
+
+        // “裸公式”一般不包含 CJK（包含的话更像普通句子）
+        if (/[\u3040-\u30ff\u3400-\u9fff]/.test(t)) return false;
+
+        return true;
+      };
+
       const walker = document.createTreeWalker(
         document.getElementById('root') || document.body,
         NodeFilter.SHOW_TEXT,
@@ -220,7 +283,7 @@
               return NodeFilter.FILTER_REJECT;
             }
             const text = node.textContent;
-            if (text && (text.includes('$$') || text.includes('$') || text.includes('\\(') || text.includes('\\['))) {
+            if (text && (text.includes('$$') || text.includes('$') || text.includes('\\(') || text.includes('\\[') || looksLikeBareLatexMath(text))) {
               return NodeFilter.FILTER_ACCEPT;
             }
             return NodeFilter.FILTER_REJECT;
@@ -264,11 +327,7 @@
               // 修复 \operatorname 后面直接跟内容的情况
               fixed = fixed.replace(/\\operatorname\{(\w+)\}(\()/g, '\\operatorname{$1}$2');
 
-              return katex.renderToString(fixed, { displayMode: true, throwOnError: false, macros: {
-                "\\begin{cases}": "\\begin{cases}",
-                "\\end{cases}": "\\end{cases}",
-                "\\text": "\\text"
-              }});
+              return katex.renderToString(fixed, { displayMode: true, throwOnError: false });
             } catch { return match; }
           });
 
@@ -293,8 +352,11 @@
             const content = formula.trim();
             // 清理换行和多余空格, 保持一行
             const cleaned = content.replace(/\s+/g, ' ').trim();
+            const isPlainVar = /^[a-zA-Z][a-zA-Z0-9]*$/.test(cleaned) && !/^[A-Z0-9_]+$/.test(cleaned);
+            const isPlainNumber = /^\d+(?:\.\d+)?$/.test(cleaned);
             const looksLikeLatex = cleaned.length <= 2 || cleaned.includes('\\') ||
               cleaned.includes('_') || cleaned.includes('^') || cleaned.includes('{') ||
+              isPlainVar || isPlainNumber ||
               /\b(alpha|beta|gamma|delta|theta|lambda|mu|sigma|pi|omega|sum|int|frac|sqrt)\b/i.test(cleaned);
             if (!looksLikeLatex) return match;
             hasFormula = true;
@@ -303,6 +365,25 @@
               return katex.renderToString(fixed, { displayMode: false, throwOnError: false });
             } catch { return match; }
           });
+
+          // 裸 LaTeX（无 $ 或 \(...\) 分隔符）
+          if (!hasFormula && looksLikeBareLatexMath(text)) {
+            hasFormula = true;
+            try {
+              let fixed = text.trim();
+
+              fixed = fixed.replace(/\\\s*\n/g, '\\\\\n');
+              fixed = fixed.replace(/\\ (?=[a-zA-Z0-9_{}])/g, '\\\\ ');
+              fixed = fixed.replace(/\\\[(\d+(?:\.\d+)?[a-z]*)\]/gi, '\\\\[$1]');
+              fixed = fixed.replace(/&\s*\\\[6pt\]/g, '& \\\\');
+              fixed = fixed.replace(/\\(sum|prod|int|lim|inf|sup|max|min)\{([^}]+)\}/g, '\\$1_{$2}');
+              fixed = fixed.replace(/\\operatorname\{(\w+)\}(\()/g, '\\operatorname{$1}$2');
+
+              resultHTML = katex.renderToString(fixed, { displayMode: true, throwOnError: false });
+            } catch {
+              hasFormula = false;
+            }
+          }
 
           if (hasFormula && resultHTML !== text && resultHTML.includes('katex')) {
             const span = document.createElement('span');
