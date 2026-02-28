@@ -241,6 +241,23 @@
     window._claudeRenderingLaTeX = true;
 
     try {
+      const fixTextCommandSyntax = (input) => {
+        if (typeof input !== 'string' || input.length === 0) return input;
+
+        let out = input;
+
+        // 常见错误：\text(...) 用了小括号而不是大括号
+        out = out.replace(/\\text\s*\(([^)]*)\)/g, '\\text{$1}');
+
+        // KaTeX 的 \text{...} 里 '_' 需要转义成 '\_'
+        out = out.replace(/\\text\{([^}]*)\}/g, (match, inner) => {
+          const escaped = inner.replace(/(^|[^\\])_/g, '$1\\_');
+          return `\\text{${escaped}}`;
+        });
+
+        return out;
+      };
+
       const looksLikeBareLatexMath = (text) => {
         const t = (text || '').trim();
         if (!t) return false;
@@ -310,6 +327,7 @@
             hasFormula = true;
             try {
               let fixed = formula;
+              fixed = fixTextCommandSyntax(fixed);
 
               // 修复矩阵换行: 单反斜杠+空格/换行 → 双反斜杠
               fixed = fixed.replace(/\\\s*\n/g, '\\\\\n');
@@ -335,7 +353,8 @@
           resultHTML = resultHTML.replace(/\\\(([\s\S]+?)\\\)/g, (match, formula) => {
             hasFormula = true;
             try {
-              return katex.renderToString(formula.trim(), { displayMode: false, throwOnError: false });
+              const fixed = fixTextCommandSyntax(formula.trim());
+              return katex.renderToString(fixed, { displayMode: false, throwOnError: false });
             } catch { return match; }
           });
 
@@ -343,7 +362,8 @@
           resultHTML = resultHTML.replace(/\\\[([\s\S]+?)\\\]/g, (match, formula) => {
             hasFormula = true;
             try {
-              return katex.renderToString(formula, { displayMode: true, throwOnError: false });
+              const fixed = fixTextCommandSyntax(formula);
+              return katex.renderToString(fixed, { displayMode: true, throwOnError: false });
             } catch { return match; }
           });
 
@@ -362,6 +382,7 @@
             hasFormula = true;
             try {
               let fixed = cleaned.replace(/\\ (?=[a-zA-Z0-9_{}])/g, '\\\\ ');
+              fixed = fixTextCommandSyntax(fixed);
               return katex.renderToString(fixed, { displayMode: false, throwOnError: false });
             } catch { return match; }
           });
@@ -371,6 +392,7 @@
             hasFormula = true;
             try {
               let fixed = text.trim();
+              fixed = fixTextCommandSyntax(fixed);
 
               fixed = fixed.replace(/\\\s*\n/g, '\\\\\n');
               fixed = fixed.replace(/\\ (?=[a-zA-Z0-9_{}])/g, '\\\\ ');
